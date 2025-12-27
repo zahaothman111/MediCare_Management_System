@@ -1,0 +1,20 @@
+<?php
+// إدارة الصلاحيات
+$permissionGroups = [
+    'patients' => ['view', 'add', 'edit', 'delete'],
+    'doctors' => ['view', 'add', 'edit', 'delete'],
+    'appointments' => ['view', 'add', 'edit', 'delete', 'confirm'],
+    'pharmacies' => ['view', 'add', 'edit']
+];
+
+// تحديث صلاحيات المستخدم
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_permissions'])) {
+    $userId = $_POST['user_id'];
+    $permissions = isset($_POST['permissions']) ? $_POST['permissions'] : [];
+    
+    $stmt = $pdo->prepare("UPDATE users SET permissions = ? WHERE id = ?");
+    $stmt->execute([json_encode($permissions), $userId]);
+    
+    logActivity('update_permissions', 'users', $userId);
+}
+?>

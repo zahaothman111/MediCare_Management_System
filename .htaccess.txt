@@ -1,0 +1,11 @@
+# منع الوصول المباشر للملفات الحساسة
+<FilesMatch "^(config|auth)\.php$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# إعادة التوجيه لصفحة تسجيل الدخول
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^login$ login.php [L]

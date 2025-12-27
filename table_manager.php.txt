@@ -1,0 +1,154 @@
+<?php
+$current_table = $_GET['table'];
+$table_name = $tables[$current_table];
+
+
+
+
+
+
+$search = '';
+$whereConditions = [];
+$params = [];
+
+if (isset($_GET['search']) && !empty($_GET['search'])) {
+    $search = $_GET['search'];
+    
+    // جلب أسماء الأعمدة ديناميكياً
+    $stmt = $pdo->prepare("DESCRIBE $current_table");
+    $stmt->execute();
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    foreach ($columns as $column) {
+        if (!in_array($column, ['id', 'created_at'])) {
+            $whereConditions[] = "$column LIKE ?";
+            $params[] = "%$search%";
+        }
+    }
+}
+
+// بناء استعلام البحث
+$sql = "SELECT * FROM $current_table";
+if (!empty($whereConditions)) {
+    $sql .= " WHERE " . implode(" OR ", $whereConditions);
+}
+$sql .= " ORDER BY id DESC";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+
+
+
+
+
+
+// العمليات الأساسية
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['delete'])) {
+        $id = $_POST['id'];
+        $stmt = $pdo->prepare("DELETE FROM $current_table WHERE id = ?");
+        $stmt->execute([$id]);
+        $_SESSION['message'] = "تم الحذف بنجاح";
+    } elseif (isset($_POST['add'])) {
+        // سيتم إضافة البيانات
+        include 'add.php';
+        exit;
+    } elseif (isset($_POST['update'])) {
+        // سيتم التعديل
+        include 'edit.php';
+        exit;
+    }
+}
+
+// جلب البيانات
+$stmt = $pdo->query("SELECT * FROM $current_table");
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+?>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4>جدول <?php echo $table_name; ?></h4>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-circle"></i> إضافة جديد
+        </button>
+    </div>
+    
+    <div class="card-body">
+        <?php if (isset($_SESSION['message'])): ?>
+            <div class="alert alert-success"><?php echo $_SESSION['message']; unset($_SESSION['message']); ?></div>
+        <?php endif; ?>
+        
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <?php if (!empty($rows)): ?>
+                            <?php foreach(array_keys($rows[0]) as $column): ?>
+                                <th><?php echo $column; ?></th>
+                            <?php endforeach; ?>
+                            <th>الإجراءات</th>
+                        <?php endif; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach($rows as $row): ?>
+                    <tr>
+                        <?php foreach($row as $value): ?>
+                            <td><?php echo htmlspecialchars($value); ?></td>
+                        <?php endforeach; ?>
+                        <td>
+                            <button class="btn btn-sm btn-warning edit-btn" 
+                                    data-id="<?php echo $row['id']; ?>"
+                                    data-table="<?php echo $current_table; ?>">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('هل أنت متأكد؟');">
+                                <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
+                                <button type="submit" name="delete" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- نموذج الإضافة -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="add.php">
+                <input type="hidden" name="table" value="<?php echo $current_table; ?>">
+                <div class="modal-header">
+                    <h5 class="modal-title">إضافة جديد</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- سيتم توليد الحقول ديناميكياً في add.php -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" name="add" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// JavaScript للتعامل مع التعديل
+document.querySelectorAll('.edit-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const id = this.dataset.id;
+        const table = this.dataset.table;
+        window.location.href = `edit.php?table=${table}&id=${id}`;
+    });
+});
+</script>
